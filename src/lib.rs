@@ -12,15 +12,15 @@ use mpi::topology::SimpleCommunicator;
 use mpi::traits::{AsRaw, Communicator, CommunicatorCollectives, Equivalence, FromRaw};
 
 /// Ghost communicator
-pub struct GhostCommunicator {
+pub struct GhostCommunicator<I: Default + Copy + Equivalence> {
     /// The `out` ranks that data is sent to from the current process.
     pub out_ranks: Vec<i32>,
     /// The `in` ranks that send data to the current process.
     pub in_ranks: Vec<i32>,
     /// Indices to send away
-    pub send_indices: Vec<usize>,
+    pub send_indices: Vec<I>,
     /// Indices to be received
-    pub receive_indices: Vec<usize>,
+    pub receive_indices: Vec<I>,
     /// How many indices to send to the `out` vertices
     pub send_counts: Vec<i32>,
     /// How many indices to receive from the `in` vertices
@@ -39,7 +39,7 @@ pub struct GhostCommunicator {
     pub backward_comm: SimpleCommunicator,
 }
 
-impl GhostCommunicator {
+impl<I: Default + Copy + Equivalence> GhostCommunicator<I> {
     /// Create new ghost communicator.
     ///
     /// # Arguments
@@ -47,10 +47,10 @@ impl GhostCommunicator {
     /// - `owning_ranks` - The ranks of the processes that own the ghost indices.
     /// - `comm` - The MPI communicator.
     pub fn new<C: Communicator>(
-        ghost_indices: &[usize],
+        ghost_indices: &[I],
         owning_ranks: &[usize],
         comm: &C,
-    ) -> GhostCommunicator {
+    ) -> GhostCommunicator<I> {
         // Get the processes of global indices and create a map rank -> indices_on_rank
 
         let mut receive_counts = vec![0; comm.size() as usize];
@@ -66,7 +66,7 @@ impl GhostCommunicator {
             let mut sorted_ghost_index_args = (0..ghost_indices.len()).collect::<Vec<_>>();
             sorted_ghost_index_args.sort_by_key(|&i| owning_ranks[i]);
 
-            let mut global_indices_t = Vec::<usize>::with_capacity(ghost_indices.len());
+            let mut global_indices_t = Vec::<I>::with_capacity(ghost_indices.len());
             for arg in sorted_ghost_index_args {
                 global_indices_t.push(ghost_indices[arg]);
             }
@@ -171,7 +171,7 @@ impl GhostCommunicator {
         let total_send_count = send_counts.iter().sum::<i32>() as usize;
         let total_receive_count = receive_counts.iter().sum::<i32>() as usize;
 
-        let mut send_indices = vec![0; total_send_count];
+        let mut send_indices = vec![<I as Default>::default(); total_send_count];
 
         // The receivers know what indices they need from each process. But the
         // senders don't know yet what indices to send to each process. So we
@@ -182,11 +182,11 @@ impl GhostCommunicator {
                 receive_indices.as_ptr() as *const c_void,
                 receive_counts.as_ptr(),
                 receive_displacements.as_ptr(),
-                mpi_sys::RSMPI_UINT64_T,
+                <I as Equivalence>::equivalent_datatype().as_raw(),
                 send_indices.as_mut_ptr() as *mut c_void,
                 send_counts.as_ptr(),
                 send_displacements.as_ptr(),
-                mpi_sys::RSMPI_UINT64_T,
+                <I as Equivalence>::equivalent_datatype().as_raw(),
                 backward_comm.as_raw(),
             );
         }
@@ -217,12 +217,12 @@ impl GhostCommunicator {
     }
 
     /// Return the indices that are sent out from the current process.
-    pub fn send_indices(&self) -> &[usize] {
+    pub fn send_indices(&self) -> &[I] {
         &self.send_indices
     }
 
     /// Return the indices that are received on the current process.
-    pub fn receive_indices(&self) -> &[usize] {
+    pub fn receive_indices(&self) -> &[I] {
         &self.receive_indices
     }
 
@@ -274,11 +274,11 @@ impl GhostCommunicator {
                 out_values.as_ptr() as *const c_void,
                 self.send_counts.as_ptr(),
                 self.send_displacements.as_ptr(),
-                <T as Equivalence>::equivalent_datatype().as_raw(),
+                <I as Equivalence>::equivalent_datatype().as_raw(),
                 in_values.as_mut_ptr() as *mut c_void,
                 self.receive_counts.as_ptr(),
                 self.receive_displacements.as_ptr(),
-                <T as Equivalence>::equivalent_datatype().as_raw(),
+                <I as Equivalence>::equivalent_datatype().as_raw(),
                 self.forward_comm.as_raw(),
             );
         }
@@ -296,11 +296,11 @@ impl GhostCommunicator {
                 out_values.as_ptr() as *const c_void,
                 self.receive_counts.as_ptr(),
                 self.receive_displacements.as_ptr(),
-                <T as Equivalence>::equivalent_datatype().as_raw(),
+                <I as Equivalence>::equivalent_datatype().as_raw(),
                 in_values.as_mut_ptr() as *mut c_void,
                 self.send_counts.as_ptr(),
                 self.send_displacements.as_ptr(),
-                <T as Equivalence>::equivalent_datatype().as_raw(),
+                <I as Equivalence>::equivalent_datatype().as_raw(),
                 self.backward_comm.as_raw(),
             );
         }
