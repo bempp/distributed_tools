@@ -5,6 +5,10 @@
 //! a neighborhood communicator on each process that allows information to where it is needed
 //! as ghost elements. A backward communicator is also implemented that allows a reeiver to
 //! change a ghost and update the information back to the original process of the element.
+//!
+//! # Example
+//!
+//! A fully worked example is provided in the file `examples/ghost_communicator.rs`.
 
 use std::os::raw::c_void;
 

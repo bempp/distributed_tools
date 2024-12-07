@@ -49,7 +49,7 @@ pub fn main() {
         );
     }
 
-    // Let us know send some data over the ghost communicator.
+    // Let us now send some data over the ghost communicator.
 
     let data = if rank == 0 {
         vec![10, 11, 12]
