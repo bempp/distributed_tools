@@ -236,6 +236,16 @@ impl GhostCommunicator {
         &self.receive_counts
     }
 
+    /// Return the total send count.
+    pub fn total_send_count(&self) -> usize {
+        self.total_send_count
+    }
+
+    /// Return the total receive count.
+    pub fn total_receive_count(&self) -> usize {
+        self.total_receive_count
+    }
+
     /// Return the forward communicator.
     ///
     /// This is a neighbourhood MPI communicator that sends values to the `out` processes
