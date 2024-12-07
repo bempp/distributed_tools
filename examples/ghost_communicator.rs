@@ -30,7 +30,7 @@ pub fn main() {
     } else if rank == 1 {
         GhostCommunicator::new(&[10], &[2], &world)
     } else {
-        GhostCommunicator::new(&[0, 1, 2, 5], &[0, 0, 0, 1], &world)
+        GhostCommunicator::new(&[5, 0, 1, 2], &[1, 0, 0, 0], &world)
     };
 
     // We have now setup the ghost communicator.
