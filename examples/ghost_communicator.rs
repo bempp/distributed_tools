@@ -1,3 +1,5 @@
+//? mpirun -n {{NPROCESSES}} --features "mpi"
+
 //! This examples demonstrates the use of the ghost communicator.
 //!
 //! We have three processes. The first process has indices 0, 1, 2, 3, 4.

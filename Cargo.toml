@@ -25,3 +25,6 @@ doctest = false
 [dependencies]
 mpi = { version = "0.8.*" }
 mpi-sys = "0.2"
+
+[lints.clippy]
+wildcard_imports = "forbid"

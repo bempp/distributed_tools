@@ -9,6 +9,8 @@
 //! # Example
 //!
 //! A fully worked example is provided in the file `examples/ghost_communicator.rs`.
+#![cfg_attr(feature = "strict", deny(warnings), deny(unused_crate_dependencies))]
+#![warn(missing_docs)]
 
 use std::os::raw::c_void;
 
