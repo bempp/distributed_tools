@@ -1,4 +1,4 @@
-//? mpirun -n {{NPROCESSES}}
+//? mpirun -n 3
 
 //! This examples demonstrates the use of the ghost communicator.
 //!
