@@ -1,4 +1,4 @@
-//? mpirun -n {{NPROCESSES}} --features "mpi"
+//? mpirun -n {{NPROCESSES}}
 
 //! This examples demonstrates the use of the ghost communicator.
 //!
