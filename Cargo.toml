@@ -2,7 +2,7 @@
 strict = []
 
 [package]
-name = "bempp-ghost"
+name = "bempp-distributed-tools"
 version = "0.1.0-dev"
 edition = "2021"
 authors = [
@@ -18,7 +18,7 @@ keywords = ["numerics"]
 categories = ["mathematics", "science"]
 
 [lib]
-name = "bempp_ghost"
+name = "bempp_distributed_tools"
 crate-type = ["lib", "cdylib"]
 doctest = false
 

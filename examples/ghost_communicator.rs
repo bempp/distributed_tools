@@ -10,7 +10,7 @@
 //! The second process requires index 4 from the third process as ghost index.
 //! The third process requires indices 0, 1, 2 from the first process as ghost.
 
-use bempp_ghost::GhostCommunicator;
+use bempp_distributed_tools::GhostCommunicator;
 use mpi::traits::Communicator;
 
 pub fn main() {
