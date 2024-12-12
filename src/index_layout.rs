@@ -9,8 +9,8 @@
 /// index ranges of the type [first, last). The index `first` is contained on the process. The
 /// index `last` is not contained on the process. If `first == last` then there is no index on
 /// the local process.
-mod default_distributed_index_layout;
-pub use default_distributed_index_layout::DefaultDistributedIndexLayout;
+mod equidistributed_index_layout;
+pub use equidistributed_index_layout::EquiDistributedIndexLayout;
 
 // An index layout specifying index ranges on each rank.
 //

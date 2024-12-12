@@ -10,4 +10,4 @@ pub mod index_layout;
 pub mod permutation;
 
 pub use ghost_communicator::GhostCommunicator;
-pub use index_layout::{DefaultDistributedIndexLayout, IndexLayout};
+pub use index_layout::{EquiDistributedIndexLayout, IndexLayout};

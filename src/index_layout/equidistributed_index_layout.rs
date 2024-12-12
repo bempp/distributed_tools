@@ -3,14 +3,14 @@ use crate::index_layout::IndexLayout;
 use mpi::traits::Communicator;
 
 /// Default index layout
-pub struct DefaultDistributedIndexLayout<'a, C: Communicator> {
+pub struct EquiDistributedIndexLayout<'a, C: Communicator> {
     size: usize,
     my_rank: usize,
     counts: Vec<usize>,
     comm: &'a C,
 }
 
-impl<'a, C: Communicator> DefaultDistributedIndexLayout<'a, C> {
+impl<'a, C: Communicator> EquiDistributedIndexLayout<'a, C> {
     /// Crate new
     pub fn new(nchunks: usize, chunk_size: usize, comm: &'a C) -> Self {
         let size = nchunks * chunk_size;
@@ -88,7 +88,7 @@ impl<'a, C: Communicator> DefaultDistributedIndexLayout<'a, C> {
     }
 }
 
-impl<C: Communicator> IndexLayout for DefaultDistributedIndexLayout<'_, C> {
+impl<C: Communicator> IndexLayout for EquiDistributedIndexLayout<'_, C> {
     fn index_range(&self, rank: usize) -> Option<(usize, usize)> {
         if rank < self.comm.size() as usize {
             Some((self.counts[rank], self.counts[1 + rank]))

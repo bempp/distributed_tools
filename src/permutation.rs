@@ -122,7 +122,7 @@ impl<'a, L: IndexLayout> DataPermutation<'a, L> {
     }
 
     /// Permute data from the custom index layout to the layout given by the `index_set`.
-    pub fn reverse_permute<T: Equivalence + Copy + Default>(
+    pub fn backward_permute<T: Equivalence + Copy + Default>(
         &self,
         data: &[T],
         permuted_data: &mut [T],
