@@ -3,8 +3,6 @@
 //! This module provides a `Permutation` struct that can be used to permute data
 //! from the layout given by an `index_set` to a custom index layout.
 
-use std::{collections::HashMap, marker::PhantomData, sync::Arc};
-
 use itertools::izip;
 use mpi::traits::{Communicator, Equivalence};
 
@@ -68,7 +66,7 @@ impl<'a, L: IndexLayout> DataPermutation<'a, L> {
         let mut receive_to_custom_map =
             Vec::<usize>::with_capacity(ghost_communicator.total_receive_count());
 
-        for index in (0..ghost_to_custom_map.len()) {
+        for index in 0..ghost_to_custom_map.len() {
             receive_to_custom_map.push(ghost_to_custom_map[ghost_permutation[index]]);
         }
 
@@ -124,8 +122,43 @@ impl<'a, L: IndexLayout> DataPermutation<'a, L> {
     }
 
     /// Permute data from the custom index layout to the layout given by the `index_set`.
-    pub fn reverse_permute<T: Equivalence>(&self, data: &[T], permuted_data: &mut [T]) {
-        todo!();
+    pub fn reverse_permute<T: Equivalence + Copy + Default>(
+        &self,
+        data: &[T],
+        permuted_data: &mut [T],
+    ) {
+        assert_eq!(data.len(), self.custom_indices.len());
+        assert_eq!(
+            permuted_data.len(),
+            self.index_layout.number_of_local_indices()
+        );
+
+        // We need to fill up the receive indices as this is the data that is sent around.
+        let mut receive_data =
+            Vec::<T>::with_capacity(self.ghost_communicator.total_receive_count());
+        for custom_index in self.receive_to_custom_map.iter() {
+            receive_data.push(data[*custom_index])
+        }
+
+        // We can now send back the receive indices.
+
+        let mut send_data = vec![T::default(); self.ghost_communicator.total_send_count()];
+
+        // We now send data backwards from receiver to sender.
+        self.ghost_communicator
+            .backward_send_values(&receive_data, &mut send_data);
+
+        // We now go through the send indices and fill the output data with the corresponding values.
+
+        for (&index, &elem) in izip!(self.ghost_communicator.send_indices(), send_data.iter()) {
+            let local_index = self.index_layout.global2local(self.my_rank, index).unwrap();
+            permuted_data[local_index] = elem;
+        }
+
+        // We still have to handle the indices that lived only locally.
+        for (&pos, &local_index) in izip!(&self.local_to_custom_map, &self.custom_local_indices) {
+            permuted_data[local_index] = data[pos];
+        }
     }
 }
 
