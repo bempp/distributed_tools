@@ -22,6 +22,11 @@ name = "bempp_distributed_tools"
 crate-type = ["lib", "cdylib"]
 doctest = false
 
+[dev-dependencies]
+rand = "0.8"
+rand_chacha = "0.3"
+rand_distr = "0.4"
+
 [dependencies]
 mpi = { version = "0.8.*" }
 mpi-sys = "0.2"
