@@ -17,6 +17,8 @@ pub use equidistributed_index_layout::EquiDistributedIndexLayout;
 /// This index layout assumes a contiguous set of indices
 /// starting with the first n0 indices on rank 0, the next n1 indices on rank 1, etc.
 pub trait IndexLayout {
+    /// MPI Communicator;
+    type Comm: mpi::topology::Communicator;
     /// The local index range. If there is no local index
     /// the left and right bound are identical.
     fn local_range(&self) -> (usize, usize);
@@ -44,4 +46,7 @@ pub trait IndexLayout {
 
     /// Get the rank of a given index.
     fn rank_from_index(&self, index: usize) -> Option<usize>;
+
+    /// Return the communicator.
+    fn comm(&self) -> &Self::Comm;
 }

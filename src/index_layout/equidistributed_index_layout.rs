@@ -82,13 +82,11 @@ impl<'a, C: Communicator> EquiDistributedIndexLayout<'a, C> {
             comm,
         }
     }
-    /// MPI communicator
-    pub fn comm(&self) -> &C {
-        self.comm
-    }
 }
 
 impl<C: Communicator> IndexLayout for EquiDistributedIndexLayout<'_, C> {
+    type Comm = C;
+
     fn index_range(&self, rank: usize) -> Option<(usize, usize)> {
         if rank < self.comm.size() as usize {
             Some((self.counts[rank], self.counts[1 + rank]))
@@ -136,5 +134,9 @@ impl<C: Communicator> IndexLayout for EquiDistributedIndexLayout<'_, C> {
             }
         }
         None
+    }
+
+    fn comm(&self) -> &Self::Comm {
+        self.comm
     }
 }
