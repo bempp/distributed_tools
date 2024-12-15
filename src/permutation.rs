@@ -11,7 +11,7 @@ use crate::index_layout::IndexLayout;
 /// Permuation of data.
 pub struct DataPermutation<'a, L: IndexLayout> {
     index_layout: &'a L,
-    custom_indices: &'a [usize],
+    nindices: usize,
     my_rank: usize,
     custom_local_indices: Vec<usize>,
     local_to_custom_map: Vec<usize>,
@@ -21,11 +21,7 @@ pub struct DataPermutation<'a, L: IndexLayout> {
 
 impl<'a, L: IndexLayout> DataPermutation<'a, L> {
     /// Create a new permutation object.
-    pub fn new<C: Communicator>(
-        index_layout: &'a L,
-        custom_indices: &'a [usize],
-        comm: &C,
-    ) -> Self {
+    pub fn new<C: Communicator>(index_layout: &'a L, custom_indices: &[usize], comm: &C) -> Self {
         // We first need to identify which custom indices are local and which are global.
 
         let my_rank = comm.rank() as usize;
@@ -72,7 +68,7 @@ impl<'a, L: IndexLayout> DataPermutation<'a, L> {
 
         Self {
             index_layout,
-            custom_indices,
+            nindices: custom_indices.len(),
             my_rank,
             custom_local_indices,
             local_to_custom_map,
@@ -88,7 +84,7 @@ impl<'a, L: IndexLayout> DataPermutation<'a, L> {
         permuted_data: &mut [T],
     ) {
         assert_eq!(data.len(), self.index_layout.number_of_local_indices());
-        assert_eq!(permuted_data.len(), self.custom_indices.len());
+        assert_eq!(permuted_data.len(), self.nindices);
 
         // We first need to get the send data. This is quite easy. We can just
         // use the global2local method from the index layout.
@@ -127,7 +123,7 @@ impl<'a, L: IndexLayout> DataPermutation<'a, L> {
         data: &[T],
         permuted_data: &mut [T],
     ) {
-        assert_eq!(data.len(), self.custom_indices.len());
+        assert_eq!(data.len(), self.nindices);
         assert_eq!(
             permuted_data.len(),
             self.index_layout.number_of_local_indices()

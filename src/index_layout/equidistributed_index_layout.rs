@@ -4,8 +4,6 @@ use mpi::traits::Communicator;
 
 /// Default index layout
 pub struct EquiDistributedIndexLayout<'a, C: Communicator> {
-    size: usize,
-    my_rank: usize,
     counts: Vec<usize>,
     comm: &'a C,
 }
@@ -13,14 +11,13 @@ pub struct EquiDistributedIndexLayout<'a, C: Communicator> {
 impl<'a, C: Communicator> EquiDistributedIndexLayout<'a, C> {
     /// Crate new
     pub fn new(nchunks: usize, chunk_size: usize, comm: &'a C) -> Self {
-        let size = nchunks * chunk_size;
+        let nindices = nchunks * chunk_size;
         let comm_size = comm.size() as usize;
 
         assert!(
             comm_size > 0,
             "Group size is zero. At least one process needs to be in the group."
         );
-        let my_rank = comm.rank() as usize;
         let mut counts = vec![0; 1 + comm_size];
 
         // The following code computes what index is on what rank. No MPI operation necessary.
@@ -37,10 +34,10 @@ impl<'a, C: Communicator> EquiDistributedIndexLayout<'a, C> {
             }
 
             for item in counts.iter_mut().take(comm_size).skip(nchunks) {
-                *item = size;
+                *item = nindices;
             }
 
-            counts[comm_size] = size;
+            counts[comm_size] = nindices;
         } else {
             // We want to equally distribute the range
             // among the ranks. Assume that we have 12
@@ -75,65 +72,15 @@ impl<'a, C: Communicator> EquiDistributedIndexLayout<'a, C> {
             }
         }
 
-        Self {
-            size,
-            my_rank,
-            counts,
-            comm,
-        }
+        Self { counts, comm }
     }
 }
 
 impl<C: Communicator> IndexLayout for EquiDistributedIndexLayout<'_, C> {
     type Comm = C;
 
-    fn index_range(&self, rank: usize) -> Option<(usize, usize)> {
-        if rank < self.comm.size() as usize {
-            Some((self.counts[rank], self.counts[1 + rank]))
-        } else {
-            None
-        }
-    }
-
-    fn local_range(&self) -> (usize, usize) {
-        self.index_range(self.my_rank).unwrap()
-    }
-
-    fn number_of_local_indices(&self) -> usize {
-        self.counts[1 + self.my_rank] - self.counts[self.my_rank]
-    }
-
-    fn number_of_global_indices(&self) -> usize {
-        self.size
-    }
-
-    fn local2global(&self, index: usize) -> Option<usize> {
-        if index < self.number_of_local_indices() {
-            Some(self.counts[self.my_rank] + index)
-        } else {
-            None
-        }
-    }
-
-    fn global2local(&self, rank: usize, index: usize) -> Option<usize> {
-        if let Some(index_range) = self.index_range(rank) {
-            if index >= index_range.1 {
-                return None;
-            }
-
-            Some(index - index_range.0)
-        } else {
-            None
-        }
-    }
-
-    fn rank_from_index(&self, index: usize) -> Option<usize> {
-        for (count_index, &count) in self.counts[1..].iter().enumerate() {
-            if index < count {
-                return Some(count_index);
-            }
-        }
-        None
+    fn counts(&self) -> &[usize] {
+        &self.counts
     }
 
     fn comm(&self) -> &Self::Comm {
