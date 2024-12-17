@@ -29,6 +29,6 @@ impl<C: Communicator> IndexLayout for IndexLayoutFromLocalCounts<'_, C> {
     }
 
     fn comm(&self) -> &Self::Comm {
-        &self.comm
+        self.comm
     }
 }

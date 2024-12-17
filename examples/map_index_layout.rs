@@ -1,3 +1,5 @@
+//? mpirun -n 3
+
 //! Map betwen two index layouts
 
 use bempp_distributed_tools::{
