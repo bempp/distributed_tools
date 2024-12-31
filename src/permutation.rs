@@ -21,9 +21,10 @@ pub struct DataPermutation<'a, L: IndexLayout> {
 
 impl<'a, L: IndexLayout> DataPermutation<'a, L> {
     /// Create a new permutation object.
-    pub fn new<C: Communicator>(index_layout: &'a L, custom_indices: &[usize], comm: &C) -> Self {
+    pub fn new(index_layout: &'a L, custom_indices: &[usize]) -> Self {
         // We first need to identify which custom indices are local and which are global.
 
+        let comm = index_layout.comm();
         let my_rank = comm.rank() as usize;
 
         let mut custom_local_indices = Vec::new();

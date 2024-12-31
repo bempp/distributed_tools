@@ -25,7 +25,7 @@ fn main() {
 
     let custom_indices = &custom_global_layout[local_bounds.0..local_bounds.1];
 
-    let permutation = DataPermutation::new(&index_layout, custom_indices, &world);
+    let permutation = DataPermutation::new(&index_layout, custom_indices);
 
     // We now want to send some data over.
 

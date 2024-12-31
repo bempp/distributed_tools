@@ -11,10 +11,12 @@
 /// the local process.
 mod equidistributed_index_layout;
 mod index_layout_from_local_counts;
+mod single_process_index_layout;
 pub use equidistributed_index_layout::EquiDistributedIndexLayout;
 pub use index_layout_from_local_counts::IndexLayoutFromLocalCounts;
 use itertools::Itertools;
 use mpi::traits::{Communicator, Equivalence};
+pub use single_process_index_layout::SingleProcessIndexLayout;
 
 use crate::array_tools::redistribute;
 
