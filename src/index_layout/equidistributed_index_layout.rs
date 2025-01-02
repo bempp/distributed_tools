@@ -8,7 +8,7 @@ pub struct EquiDistributedIndexLayout<'a, C: Communicator> {
     comm: &'a C,
 }
 
-unsafe impl<'a, C: Communicator> Sync for EquiDistributedIndexLayout<'a, C> {}
+unsafe impl<C: Communicator> Sync for EquiDistributedIndexLayout<'_, C> {}
 
 impl<'a, C: Communicator> EquiDistributedIndexLayout<'a, C> {
     /// Crate new

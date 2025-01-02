@@ -8,13 +8,13 @@ pub struct SingleProcessIndexLayout<'a, C: Communicator> {
     comm: &'a C,
 }
 
-unsafe impl<'a, C: Communicator> Sync for SingleProcessIndexLayout<'a, C> {}
+unsafe impl<C: Communicator> Sync for SingleProcessIndexLayout<'_, C> {}
 
 impl<'a, C: Communicator> SingleProcessIndexLayout<'a, C> {
     /// Create new single process index layout that lives on `root` with `ndofs` degrees of freedom.
     pub fn new(root: usize, ndofs: usize, comm: &'a C) -> Self {
         let size = comm.size() as usize;
-        assert!(root < size as usize);
+        assert!(root < size);
         let mut counts = vec![0; comm.size() as usize + 1];
         counts[root] = ndofs;
         for i in 1..=size {
@@ -32,6 +32,6 @@ impl<C: Communicator> IndexLayout for SingleProcessIndexLayout<'_, C> {
     }
 
     fn comm(&self) -> &Self::Comm {
-        &self.comm
+        self.comm
     }
 }
