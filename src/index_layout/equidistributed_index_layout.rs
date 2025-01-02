@@ -8,6 +8,8 @@ pub struct EquiDistributedIndexLayout<'a, C: Communicator> {
     comm: &'a C,
 }
 
+unsafe impl<'a, C: Communicator> Sync for EquiDistributedIndexLayout<'a, C> {}
+
 impl<'a, C: Communicator> EquiDistributedIndexLayout<'a, C> {
     /// Crate new
     pub fn new(nchunks: usize, chunk_size: usize, comm: &'a C) -> Self {

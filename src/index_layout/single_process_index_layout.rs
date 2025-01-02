@@ -8,6 +8,8 @@ pub struct SingleProcessIndexLayout<'a, C: Communicator> {
     comm: &'a C,
 }
 
+unsafe impl<'a, C: Communicator> Sync for SingleProcessIndexLayout<'a, C> {}
+
 impl<'a, C: Communicator> SingleProcessIndexLayout<'a, C> {
     /// Create new single process index layout that lives on `root` with `ndofs` degrees of freedom.
     pub fn new(root: usize, ndofs: usize, comm: &'a C) -> Self {
