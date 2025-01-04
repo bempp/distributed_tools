@@ -9,17 +9,14 @@
 //! ghost indices.
 //! The second process requires index 4 from the third process as ghost index.
 //! The third process requires indices 0, 1, 2 from the first process as ghost.
-//! We are setting chunk size to 5 so that each index corresponds to 3 data items.
 
 use bempp_distributed_tools::GhostCommunicator;
-use itertools::{izip, Itertools};
 use mpi::traits::Communicator;
 
 pub fn main() {
     let universe = mpi::initialize().unwrap();
     let world = universe.world();
     let rank = world.rank();
-    let chunk_size = 5;
 
     // This example is designed for two processes.
     assert_eq!(
@@ -31,32 +28,37 @@ pub fn main() {
     // We setup the ghost communicator.
 
     let ghost_comm = if rank == 0 {
-        GhostCommunicator::new_with_chunk_size(&[5, 6], &[1, 1], chunk_size, &world)
+        GhostCommunicator::new(&[5, 6], &[1, 1], &world)
     } else if rank == 1 {
-        GhostCommunicator::new_with_chunk_size(&[10], &[2], chunk_size, &world)
+        GhostCommunicator::new(&[10], &[2], &world)
     } else {
-        GhostCommunicator::new_with_chunk_size(&[5, 0, 1, 2], &[1, 0, 0, 0], chunk_size, &world)
+        GhostCommunicator::new(&[5, 0, 1, 2], &[1, 0, 0, 0], &world)
     };
 
-    // Let us now send some data over the ghost communicator. We repeat each index `chunk_size` times.
+    // We have now setup the ghost communicator.
+    // Let us print the in-ranks and out-ranks for process 0,
+    // and the receive_indices and send_indices.
+
+    if rank == 2 {
+        println!(
+            "Process 1: In ranks: {:#?}, Out ranks: {:#?}, send_counts: {:#?}, receive_counts: {:#?}, receive_indices: {:#?}, send_indices: {:#?}",
+            ghost_comm.in_ranks(),
+            ghost_comm.out_ranks(),
+            ghost_comm.send_counts(),
+            ghost_comm.receive_counts(),
+            ghost_comm.receive_indices(),
+            ghost_comm.send_indices(),
+        );
+    }
+
+    // Let us now send some data over the ghost communicator.
 
     let data = if rank == 0 {
-        [10, 11, 12]
-            .iter()
-            .flat_map(|x| std::iter::repeat(x).take(chunk_size))
-            .copied()
-            .collect_vec()
+        vec![10, 11, 12]
     } else if rank == 1 {
-        [13, 14, 13]
-            .iter()
-            .flat_map(|x| std::iter::repeat(x).take(chunk_size))
-            .copied()
-            .collect_vec()
+        vec![13, 14, 13]
     } else {
-        [15].iter()
-            .flat_map(|x| std::iter::repeat(x).take(chunk_size))
-            .copied()
-            .collect_vec()
+        vec![15]
     };
 
     let mut received_data = vec![0; ghost_comm.total_receive_count()];
@@ -64,24 +66,15 @@ pub fn main() {
     ghost_comm.forward_send_values(&data, &mut received_data);
 
     if rank == 0 {
-        let expected = [13, 14];
-        for (e_slice, &a) in izip!(received_data.chunks(chunk_size), expected.iter()) {
-            for &elem in e_slice {
-                assert_eq!(elem, a);
-            }
-        }
+        assert_eq!(received_data[0], 13);
+        assert_eq!(received_data[1], 14);
     } else if rank == 1 {
-        received_data
-            .iter()
-            .take(chunk_size)
-            .for_each(|&x| assert_eq!(x, 15));
+        assert_eq!(received_data[0], 15);
     } else {
-        let expected = [10, 11, 12, 13];
-        for (e_slice, &a) in izip!(received_data.chunks(chunk_size), expected.iter()) {
-            for &elem in e_slice {
-                assert_eq!(elem, a);
-            }
-        }
+        assert_eq!(received_data[0], 10);
+        assert_eq!(received_data[1], 11);
+        assert_eq!(received_data[2], 12);
+        assert_eq!(received_data[3], 13);
     }
 
     // We now want to send the received data back to the original owners.
@@ -91,25 +84,14 @@ pub fn main() {
     ghost_comm.backward_send_values(&received_data, &mut send_data);
 
     if rank == 0 {
-        let expected = [10, 11, 12];
-        for (e_slice, &a) in izip!(send_data.chunks(chunk_size), expected.iter()) {
-            for &elem in e_slice {
-                assert_eq!(elem, a);
-            }
-        }
+        assert_eq!(send_data[0], 10);
+        assert_eq!(send_data[1], 11);
+        assert_eq!(send_data[2], 12);
     } else if rank == 1 {
-        let expected = [13, 14, 13];
-        for (e_slice, &a) in izip!(send_data.chunks(chunk_size), expected.iter()) {
-            for &elem in e_slice {
-                assert_eq!(elem, a);
-            }
-        }
+        assert_eq!(send_data[0], 13);
+        assert_eq!(send_data[1], 14);
+        assert_eq!(send_data[2], 13);
     } else {
-        let expected = [15];
-        for (e_slice, &a) in izip!(send_data.chunks(chunk_size), expected.iter()) {
-            for &elem in e_slice {
-                assert_eq!(elem, a);
-            }
-        }
+        assert_eq!(send_data[0], 15);
     }
 }
