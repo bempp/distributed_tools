@@ -23,22 +23,20 @@ pub struct GhostCommunicator<I: Default + Copy + Equivalence> {
     pub in_ranks: Vec<i32>,
     /// Indices to send away
     pub send_indices: Vec<I>,
-    /// Indices to be received.
+    /// Indices to be received
     pub receive_indices: Vec<I>,
-    /// How many items to send to the `out` vertices. This is the number of indices for the `out` ranks times the chunk size.
+    /// How many indices to send to the `out` vertices
     pub send_counts: Vec<i32>,
-    /// How many items to receive from the `in` vertices. This is the number of indices from the `in` ranks times the chunk size.
+    /// How many indices to receive from the `in` vertices
     pub receive_counts: Vec<i32>,
     /// Neighbourhood send displacements
     pub send_displacements: Vec<i32>,
     /// Neighbourhood receive displacements
     pub receive_displacements: Vec<i32>,
-    /// Total number of items to send. This is the overall number of indices to send times the chunk size.
+    /// Total number of items to send
     pub total_send_count: usize,
-    /// Total number of items to receive. This is the overall number of indices to receive times the chunk size.
+    /// Total number of items to receive
     pub total_receive_count: usize,
-    /// The chunk size of the data to be sent. Each index is associated with one chunk.
-    pub chunk_size: usize,
     ///  The forward communicator
     pub forward_comm: SimpleCommunicator,
     /// The backward communicator that reverses the `in` and `out` vertices
@@ -47,9 +45,6 @@ pub struct GhostCommunicator<I: Default + Copy + Equivalence> {
 
 impl<I: Default + Copy + Equivalence> GhostCommunicator<I> {
     /// Create new ghost communicator.
-    ///
-    /// This creates a ghost communicator with `chunk_size = 1`. For other chunk sizes please use
-    /// `new_with_chunk_size`.
     ///
     /// # Arguments
     /// - `ghost_indices` - The ghost indices required on the current process.
@@ -60,25 +55,6 @@ impl<I: Default + Copy + Equivalence> GhostCommunicator<I> {
         owning_ranks: &[usize],
         comm: &C,
     ) -> GhostCommunicator<I> {
-        Self::new_with_chunk_size(ghost_indices, owning_ranks, 1, comm)
-    }
-
-    /// Create new ghost communicator.
-    ///
-    /// # Arguments
-    /// - `ghost_indices` - The ghost indices required on the current process.
-    /// - `owning_ranks` - The ranks of the processes that own the ghost indices.
-    /// - 'chunk_size' - The size of chunks to send. Each index corresponds to an amount of data of `chunk_size`.
-    /// - `comm` - The MPI communicator.
-    pub fn new_with_chunk_size<C: Communicator>(
-        ghost_indices: &[I],
-        owning_ranks: &[usize],
-        chunk_size: usize,
-        comm: &C,
-    ) -> GhostCommunicator<I> {
-        // We set up everything assuming chunk_size = 1 and then at the end multiply the various counts with the
-        // correct chunk size. This is easier than remembering in every loop to put in the correct multiplier.
-
         // Get the processes of global indices and create a map rank -> indices_on_rank
 
         let mut receive_counts = vec![0; comm.size() as usize];
@@ -223,22 +199,12 @@ impl<I: Default + Copy + Equivalence> GhostCommunicator<I> {
             in_ranks,
             send_indices,
             receive_indices,
-            send_counts: send_counts.iter().map(|&x| x * chunk_size as i32).collect(),
-            receive_counts: receive_counts
-                .iter()
-                .map(|&x| x * chunk_size as i32)
-                .collect(),
-            send_displacements: send_displacements
-                .iter()
-                .map(|&x| x * chunk_size as i32)
-                .collect(),
-            receive_displacements: receive_displacements
-                .iter()
-                .map(|&x| x * chunk_size as i32)
-                .collect(),
-            total_send_count: total_send_count * chunk_size,
-            total_receive_count: total_receive_count * chunk_size,
-            chunk_size,
+            send_counts,
+            receive_counts,
+            send_displacements,
+            receive_displacements,
+            total_send_count,
+            total_receive_count,
             forward_comm,
             backward_comm,
         }
