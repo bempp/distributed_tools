@@ -288,6 +288,56 @@ impl<I: Default + Copy + Equivalence> GhostCommunicator<I> {
         }
     }
 
+    /// Forward send values with a given chunk size.
+    ///
+    /// This updates ghosts on the receiver process with the values of the ghosts from
+    /// their owning process. In addition this method has a `chunk_size` parameter to communicate
+    /// amounts of data in chunks larger than 1.
+    pub fn forward_send_values_by_chunks<T: Equivalence>(
+        &self,
+        out_values: &[T],
+        in_values: &mut [T],
+        chunk_size: usize,
+    ) {
+        assert_eq!(in_values.len(), self.total_receive_count * chunk_size);
+        assert_eq!(out_values.len(), self.total_send_count * chunk_size);
+
+        let chunked_send_counts = self
+            .send_counts
+            .iter()
+            .map(|&x| x * chunk_size as i32)
+            .collect::<Vec<_>>();
+        let chunked_receive_counts = self
+            .receive_counts
+            .iter()
+            .map(|&x| x * chunk_size as i32)
+            .collect::<Vec<_>>();
+        let chunked_send_displacements = self
+            .send_displacements
+            .iter()
+            .map(|&x| x * chunk_size as i32)
+            .collect::<Vec<_>>();
+        let chunked_receive_displacements = self
+            .receive_displacements
+            .iter()
+            .map(|&x| x * chunk_size as i32)
+            .collect::<Vec<_>>();
+
+        unsafe {
+            mpi_sys::MPI_Neighbor_alltoallv(
+                out_values.as_ptr() as *const c_void,
+                chunked_send_counts.as_ptr(),
+                chunked_send_displacements.as_ptr(),
+                <I as Equivalence>::equivalent_datatype().as_raw(),
+                in_values.as_mut_ptr() as *mut c_void,
+                chunked_receive_counts.as_ptr(),
+                chunked_receive_displacements.as_ptr(),
+                <I as Equivalence>::equivalent_datatype().as_raw(),
+                self.forward_comm.as_raw(),
+            );
+        }
+    }
+
     /// Backward send values.
     ///
     /// This back propagates updated ghost values from the receiver to the original owning process.
@@ -304,6 +354,56 @@ impl<I: Default + Copy + Equivalence> GhostCommunicator<I> {
                 in_values.as_mut_ptr() as *mut c_void,
                 self.send_counts.as_ptr(),
                 self.send_displacements.as_ptr(),
+                <I as Equivalence>::equivalent_datatype().as_raw(),
+                self.backward_comm.as_raw(),
+            );
+        }
+    }
+
+    /// Backward send values.
+    ///
+    /// This back propagates updated ghost values from the receiver to the original owning process.
+    /// In addition this method has a `chunk_size` parameter to communicate
+    /// amounts of data in chunks larger than 1.
+    pub fn backward_send_values_by_chunks<T: Equivalence>(
+        &self,
+        out_values: &[T],
+        in_values: &mut [T],
+        chunk_size: usize,
+    ) {
+        assert_eq!(out_values.len(), self.total_receive_count * chunk_size);
+        assert_eq!(in_values.len(), self.total_send_count * chunk_size);
+
+        let chunked_send_counts = self
+            .send_counts
+            .iter()
+            .map(|&x| x * chunk_size as i32)
+            .collect::<Vec<_>>();
+        let chunked_receive_counts = self
+            .receive_counts
+            .iter()
+            .map(|&x| x * chunk_size as i32)
+            .collect::<Vec<_>>();
+        let chunked_send_displacements = self
+            .send_displacements
+            .iter()
+            .map(|&x| x * chunk_size as i32)
+            .collect::<Vec<_>>();
+        let chunked_receive_displacements = self
+            .receive_displacements
+            .iter()
+            .map(|&x| x * chunk_size as i32)
+            .collect::<Vec<_>>();
+
+        unsafe {
+            mpi_sys::MPI_Neighbor_alltoallv(
+                out_values.as_ptr() as *const c_void,
+                chunked_receive_counts.as_ptr(),
+                chunked_receive_displacements.as_ptr(),
+                <I as Equivalence>::equivalent_datatype().as_raw(),
+                in_values.as_mut_ptr() as *mut c_void,
+                chunked_send_counts.as_ptr(),
+                chunked_send_displacements.as_ptr(),
                 <I as Equivalence>::equivalent_datatype().as_raw(),
                 self.backward_comm.as_raw(),
             );
