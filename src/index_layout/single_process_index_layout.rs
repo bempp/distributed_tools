@@ -14,7 +14,7 @@ impl<'a, C: Communicator> SingleProcessIndexLayout<'a, C> {
         let size = comm.size() as usize;
         assert!(root < size);
         let mut counts = vec![0; comm.size() as usize + 1];
-        counts[root] = ndofs;
+        counts[1 + root] = ndofs;
         for i in 1..=size {
             counts[i] += counts[i - 1];
         }
