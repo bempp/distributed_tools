@@ -8,7 +8,7 @@ pub struct EquiDistributedIndexLayout<'a, C: Communicator> {
     comm: &'a C,
 }
 
-impl<'a, C: Communicator> Clone for EquiDistributedIndexLayout<'a, C> {
+impl<C: Communicator> Clone for EquiDistributedIndexLayout<'_, C> {
     fn clone(&self) -> Self {
         Self {
             counts: self.counts.clone(),

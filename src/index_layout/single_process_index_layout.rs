@@ -8,7 +8,7 @@ pub struct SingleProcessIndexLayout<'a, C: Communicator> {
     comm: &'a C,
 }
 
-impl<'a, C: Communicator> Clone for SingleProcessIndexLayout<'a, C> {
+impl<C: Communicator> Clone for SingleProcessIndexLayout<'_, C> {
     fn clone(&self) -> Self {
         Self {
             counts: self.counts.clone(),
