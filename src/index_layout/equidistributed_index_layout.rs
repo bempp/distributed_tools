@@ -8,6 +8,15 @@ pub struct EquiDistributedIndexLayout<'a, C: Communicator> {
     comm: &'a C,
 }
 
+impl<C: Communicator> Clone for EquiDistributedIndexLayout<'_, C> {
+    fn clone(&self) -> Self {
+        Self {
+            counts: self.counts.clone(),
+            comm: self.comm,
+        }
+    }
+}
+
 impl<'a, C: Communicator> EquiDistributedIndexLayout<'a, C> {
     /// Crate new
     pub fn new(nchunks: usize, chunk_size: usize, comm: &'a C) -> Self {
