@@ -8,6 +8,15 @@ pub struct SingleProcessIndexLayout<'a, C: Communicator> {
     comm: &'a C,
 }
 
+impl<'a, C: Communicator> Clone for SingleProcessIndexLayout<'a, C> {
+    fn clone(&self) -> Self {
+        Self {
+            counts: self.counts.clone(),
+            comm: self.comm,
+        }
+    }
+}
+
 impl<'a, C: Communicator> SingleProcessIndexLayout<'a, C> {
     /// Create new single process index layout that lives on `root` with `ndofs` degrees of freedom.
     pub fn new(root: usize, ndofs: usize, comm: &'a C) -> Self {

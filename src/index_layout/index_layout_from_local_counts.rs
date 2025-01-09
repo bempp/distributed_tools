@@ -8,6 +8,15 @@ pub struct IndexLayoutFromLocalCounts<'a, C: Communicator> {
     comm: &'a C,
 }
 
+impl<'a, C: Communicator> Clone for IndexLayoutFromLocalCounts<'a, C> {
+    fn clone(&self) -> Self {
+        Self {
+            counts: self.counts.clone(),
+            comm: self.comm,
+        }
+    }
+}
+
 impl<'a, C: Communicator + CommunicatorCollectives> IndexLayoutFromLocalCounts<'a, C> {
     /// Crate new
     pub fn new(local_count: usize, comm: &'a C) -> Self {

@@ -24,7 +24,7 @@ use crate::array_tools::redistribute;
 //
 /// This index layout assumes a contiguous set of indices
 /// starting with the first n0 indices on rank 0, the next n1 indices on rank 1, etc.
-pub trait IndexLayout {
+pub trait IndexLayout: Clone {
     /// MPI Communicator;
     type Comm: mpi::topology::Communicator;
 
