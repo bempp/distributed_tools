@@ -20,7 +20,7 @@ pub fn main() {
 
     // This example is designed for 3 MPI ranks.
 
-    if rank != 3 {
+    if world.size() != 3 {
         println!("Please run this example with 3 MPI ranks.");
         return;
     }

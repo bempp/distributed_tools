@@ -13,6 +13,11 @@ fn main() {
     let universe = mpi::initialize().unwrap();
     let world = universe.world();
 
+    if world.size() != 3 {
+        println!("Please run this example with 3 MPI ranks.");
+        return;
+    }
+
     // Create an index layout with 10 indices on each rank.
 
     let layout1 = EquiDistributedIndexLayout::new(30, 1, &world);
