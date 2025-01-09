@@ -18,6 +18,13 @@ pub fn main() {
     let world = universe.world();
     let rank = world.rank();
 
+    // This example is designed for 3 MPI ranks.
+
+    if rank != 3 {
+        println!("Please run this example with 3 MPI ranks.");
+        return;
+    }
+
     // This example is designed for two processes.
     assert_eq!(
         world.size(),
