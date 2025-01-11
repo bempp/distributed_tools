@@ -9,8 +9,8 @@ use mpi::traits::{Communicator, Equivalence};
 use crate::index_layout::IndexLayout;
 
 /// Permuation of data.
-pub struct DataPermutation<'a, L: IndexLayout> {
-    index_layout: &'a L,
+pub struct DataPermutation<'a, C: Communicator> {
+    index_layout: &'a IndexLayout<'a, C>,
     nindices: usize,
     my_rank: usize,
     custom_local_indices: Vec<usize>,
@@ -19,9 +19,9 @@ pub struct DataPermutation<'a, L: IndexLayout> {
     ghost_communicator: crate::GhostCommunicator<usize>,
 }
 
-impl<'a, L: IndexLayout> DataPermutation<'a, L> {
+impl<'a, C: Communicator> DataPermutation<'a, C> {
     /// Create a new permutation object.
-    pub fn new(index_layout: &'a L, custom_indices: &[usize]) -> Self {
+    pub fn new(index_layout: &'a IndexLayout<'a, C>, custom_indices: &[usize]) -> Self {
         // We first need to identify which custom indices are local and which are global.
 
         let comm = index_layout.comm();
