@@ -2,10 +2,7 @@
 
 //! Map betwen two index layouts
 
-use bempp_distributed_tools::{
-    index_layout::{IndexLayout, IndexLayoutFromLocalCounts},
-    EquiDistributedIndexLayout,
-};
+use bempp_distributed_tools::index_layout::IndexLayout;
 use itertools::{izip, Itertools};
 use mpi::traits::Communicator;
 
@@ -20,7 +17,7 @@ fn main() {
 
     // Create an index layout with 10 indices on each rank.
 
-    let layout1 = EquiDistributedIndexLayout::new(30, 1, &world);
+    let layout1 = IndexLayout::from_equidistributed_chunks(30, 1, &world);
 
     // Create a second layout with 5 indices on rank 0, 17 on rank 1 and 8 on rank 2.
 
@@ -31,7 +28,7 @@ fn main() {
         _ => panic!("This example only works with three processes."),
     };
 
-    let layout2 = IndexLayoutFromLocalCounts::new(counts, &world);
+    let layout2 = IndexLayout::from_local_counts(counts, &world);
 
     // Now we can map between the two layouts.
 

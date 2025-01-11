@@ -1,7 +1,7 @@
 //! Example for the use of global permutations.
 
 use bempp_distributed_tools::permutation::DataPermutation;
-use bempp_distributed_tools::{EquiDistributedIndexLayout, IndexLayout};
+use bempp_distributed_tools::IndexLayout;
 use itertools::{izip, Itertools};
 use rand::prelude::*;
 use rand::seq::SliceRandom;
@@ -17,7 +17,7 @@ fn main() {
     // We setup the index layout.
 
     // We now create a permutation of the dofs.
-    let index_layout = EquiDistributedIndexLayout::new(n, 1, &world);
+    let index_layout = IndexLayout::from_equidistributed_chunks(n, 1, &world);
     let mut custom_global_layout = (0..n).collect_vec();
     custom_global_layout.shuffle(&mut rng);
 
