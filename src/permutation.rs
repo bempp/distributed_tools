@@ -3,6 +3,8 @@
 //! This module provides a `Permutation` struct that can be used to permute data
 //! from the layout given by an `index_set` to a custom index layout.
 
+use std::rc::Rc;
+
 use itertools::izip;
 use mpi::traits::{Communicator, Equivalence};
 
@@ -10,7 +12,7 @@ use crate::index_layout::IndexLayout;
 
 /// Permuation of data.
 pub struct DataPermutation<'a, C: Communicator> {
-    index_layout: &'a IndexLayout<'a, C>,
+    index_layout: Rc<IndexLayout<'a, C>>,
     nindices: usize,
     my_rank: usize,
     custom_local_indices: Vec<usize>,
@@ -21,7 +23,7 @@ pub struct DataPermutation<'a, C: Communicator> {
 
 impl<'a, C: Communicator> DataPermutation<'a, C> {
     /// Create a new permutation object.
-    pub fn new(index_layout: &'a IndexLayout<'a, C>, custom_indices: &[usize]) -> Self {
+    pub fn new(index_layout: Rc<IndexLayout<'a, C>>, custom_indices: &[usize]) -> Self {
         // We first need to identify which custom indices are local and which are global.
 
         let comm = index_layout.comm();
