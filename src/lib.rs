@@ -5,6 +5,7 @@
 #![warn(missing_docs)]
 
 pub mod array_tools;
+pub mod dof_mapper;
 pub mod ghost_communicator;
 pub mod index_layout;
 pub mod permutation;
