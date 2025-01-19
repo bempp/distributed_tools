@@ -3,7 +3,7 @@
 //! We want to select a subset of these indices on each process. The `IndexEmbedding` struct
 //! efficiently handles mapping between indices relative to this subset and the global index set.
 
-use std::{collections::HashMap, ops::Index, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use itertools::izip;
 use mpi::traits::Communicator;
