@@ -156,4 +156,14 @@ impl<'a, C: Communicator> Global2LocalDataMapper<'a, C> {
 
         output_data
     }
+
+    /// Return the index layout
+    pub fn index_layout(&self) -> Rc<IndexLayout<'a, C>> {
+        self.index_layout.clone()
+    }
+
+    /// Return the ghost communicator
+    pub fn ghost_communicator(&self) -> &crate::GhostCommunicator<usize> {
+        &self.ghost_communicator
+    }
 }
