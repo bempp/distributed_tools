@@ -16,6 +16,17 @@ pub struct IndexLayout<'a, C: Communicator> {
     comm: &'a C,
 }
 
+impl<C: Communicator> std::fmt::Debug for IndexLayout<'_, C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "IndexLayout with {} global indices and {} local indices.",
+            self.number_of_global_indices(),
+            self.number_of_local_indices()
+        )
+    }
+}
+
 impl<C: Communicator> Clone for IndexLayout<'_, C> {
     fn clone(&self) -> Self {
         Self {
