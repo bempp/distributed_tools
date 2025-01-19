@@ -166,4 +166,9 @@ impl<'a, C: Communicator> Global2LocalDataMapper<'a, C> {
     pub fn ghost_communicator(&self) -> &crate::GhostCommunicator<usize> {
         &self.ghost_communicator
     }
+
+    /// For a given dof return the position in the `required_dofs` vector
+    pub fn dof_to_position(&self, dof: usize) -> Option<usize> {
+        self.dof_to_position.get(&dof).copied()
+    }
 }
