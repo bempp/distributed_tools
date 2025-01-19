@@ -59,6 +59,11 @@ impl<'a, C: Communicator> IndexEmbedding<'a, C> {
         self.embedded_layout.clone()
     }
 
+    /// Return the global layout
+    pub fn global_layout(&self) -> Rc<IndexLayout<'a, C>> {
+        self.global_layout.clone()
+    }
+
     /// Map an index with respect to the embedded indexing to the corresponding local index
     pub fn embedded_index_to_local_index(&self, embedded_index: usize) -> usize {
         self.embedded_index_subset[embedded_index]
