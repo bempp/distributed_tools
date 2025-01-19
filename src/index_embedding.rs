@@ -3,7 +3,7 @@
 //! We want to select a subset of these indices on each process. The `IndexEmbedding` struct
 //! efficiently handles mapping between indices relative to this subset and the global index set.
 
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, ops::Index, rc::Rc};
 
 use itertools::izip;
 use mpi::traits::Communicator;
@@ -57,6 +57,11 @@ impl<'a, C: Communicator> IndexEmbedding<'a, C> {
     /// Return the embedded index layout
     pub fn embedded_layout(&self) -> Rc<IndexLayout<'a, C>> {
         self.embedded_layout.clone()
+    }
+
+    /// Return the global layout
+    pub fn global_layout(&self) -> Rc<IndexLayout<'a, C>> {
+        self.global_layout.clone()
     }
 
     /// Map an index with respect to the embedded indexing to the corresponding local index
