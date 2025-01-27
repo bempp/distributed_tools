@@ -7,7 +7,7 @@
 
 use std::{collections::HashMap, rc::Rc};
 
-use itertools::izip;
+use itertools::{izip, Itertools};
 use mpi::traits::{Communicator, Equivalence};
 
 use crate::IndexLayout;
@@ -16,9 +16,8 @@ use crate::IndexLayout;
 pub struct Global2LocalDataMapper<'a, C: Communicator> {
     index_layout: Rc<IndexLayout<'a, C>>,
     ghost_communicator: crate::GhostCommunicator<usize>,
-    owned_dofs: Vec<usize>,
-    ghost_dofs: Vec<usize>,
-    dof_to_position: HashMap<usize, usize>,
+    ghost_to_position: HashMap<usize, usize>,
+    required_dofs: Vec<usize>,
 }
 
 impl<'a, C: Communicator> Global2LocalDataMapper<'a, C> {
@@ -29,38 +28,46 @@ impl<'a, C: Communicator> Global2LocalDataMapper<'a, C> {
         let comm = index_layout.comm();
         let rank = comm.rank() as usize;
 
-        // First we go through the required dofs, determine which ones are ghosts and
-        // create a map from dof index to position in the required dofs.
+        // First we go through the required dofs and get the ghosts
 
-        let mut owned_dofs = Vec::<usize>::new();
         let mut ghost_dofs = Vec::<usize>::new();
-        let mut ghost_owners = Vec::<usize>::new();
 
-        let mut dof_to_position = HashMap::<usize, usize>::new();
-
-        for (pos, &dof) in required_dofs.iter().enumerate() {
-            dof_to_position.insert(dof, pos);
-            let original_rank = index_layout.rank_from_index(dof).unwrap();
-            if original_rank == rank {
-                owned_dofs.push(dof);
-            } else {
+        for &dof in required_dofs.iter() {
+            if index_layout.rank_from_index(dof).unwrap() != rank {
                 ghost_dofs.push(dof);
-                ghost_owners.push(original_rank);
             }
         }
 
-        // We now initialize the ghost communicator.
+        // Now make sure that the ghosts are unique
+
+        let ghost_dofs = ghost_dofs.iter().unique().copied().collect_vec();
+
+        // Get the ranks of the ghost
+
+        let ghost_owners = ghost_dofs
+            .iter()
+            .map(|&dof| index_layout.rank_from_index(dof).unwrap())
+            .collect_vec();
+
+        // We now setup the ghost communicator
 
         let ghost_communicator = crate::GhostCommunicator::new(&ghost_dofs, &ghost_owners, comm);
 
-        // That's it. Return the struct.
+        // We now create a dof to position array for the ghosts
+
+        let ghost_to_position = HashMap::<usize, usize>::from_iter(
+            ghost_communicator
+                .receive_indices
+                .iter()
+                .enumerate()
+                .map(|(i, &d)| (d, i)),
+        );
 
         Self {
             index_layout,
             ghost_communicator,
-            owned_dofs,
-            ghost_dofs,
-            dof_to_position,
+            ghost_to_position,
+            required_dofs: required_dofs.to_vec(),
         }
     }
 
@@ -68,7 +75,11 @@ impl<'a, C: Communicator> Global2LocalDataMapper<'a, C> {
     ///
     /// The input data is a vector of global data. A chunk size can be given in case multiple elements
     /// are associated with each dof.
-    pub fn map_data<T: Equivalence + Copy>(&self, data: &[T], chunk_size: usize) -> Vec<T> {
+    pub fn map_data<T: Equivalence + Copy + std::fmt::Debug>(
+        &self,
+        data: &[T],
+        chunk_size: usize,
+    ) -> Vec<T> {
         // First we need to go through the send dofs and set up the data that needs to be sent.
 
         let rank = self.index_layout.comm().rank() as usize;
@@ -114,40 +125,33 @@ impl<'a, C: Communicator> Global2LocalDataMapper<'a, C> {
         // and collect the data from what is already on the process and from the ghosts.
 
         let output_data = {
-            let total_number_of_dofs = self.owned_dofs.len() + self.ghost_dofs.len();
+            let total_number_of_dofs = self.required_dofs.len();
             let mut output_data = Vec::<T>::with_capacity(total_number_of_dofs * chunk_size);
 
             let output_buffer: &mut [T] =
                 unsafe { std::mem::transmute(output_data.spare_capacity_mut()) };
 
-            // First we go through the ghost dofs and copy the corresponding data over.
+            // We go through the dofs one by one, check whether it is owned or a ghost
+            // and copy over the corresponding data
 
-            for (global_receive_index, receive_buffer_chunk) in izip!(
-                self.ghost_communicator.receive_indices().iter(),
-                receive_data.chunks(chunk_size)
+            for (&dof, output_chunk) in izip!(
+                self.required_dofs.iter(),
+                output_buffer.chunks_mut(chunk_size)
             ) {
-                let local_position = self.dof_to_position[global_receive_index];
-                let local_start_index = local_position * chunk_size;
-                let local_end_index = local_start_index + chunk_size;
-                output_buffer[local_start_index..local_end_index]
-                    .copy_from_slice(receive_buffer_chunk);
-            }
+                if self.index_layout.rank_from_index(dof).unwrap() == rank {
+                    // Dof is owned. Need to copy the corresponding data
+                    let local_dof = self.index_layout.global2local(rank, dof).unwrap();
+                    let local_data_start = local_dof * chunk_size;
+                    let local_data_end = local_data_start + chunk_size;
 
-            // Now do the same with the owned dofs.
+                    output_chunk.copy_from_slice(&data[local_data_start..local_data_end]);
+                } else {
+                    // Dof is a ghost Need to copy from ghosts
+                    let receive_start = self.ghost_to_position[&dof] * chunk_size;
+                    let receive_end = receive_start + chunk_size;
 
-            for &global_owned_dof in &self.owned_dofs {
-                let local_position = self.dof_to_position[&global_owned_dof];
-                let local_start_index = local_position * chunk_size;
-                let local_end_index = local_start_index + chunk_size;
-
-                let local_data_start_index = self
-                    .index_layout
-                    .global2local(rank, global_owned_dof)
-                    .unwrap()
-                    * chunk_size;
-                let local_data_end_index = local_data_start_index + chunk_size;
-                output_buffer[local_start_index..local_end_index]
-                    .copy_from_slice(&data[local_data_start_index..local_data_end_index]);
+                    output_chunk.copy_from_slice(&receive_data[receive_start..receive_end]);
+                }
             }
 
             unsafe { output_data.set_len(total_number_of_dofs * chunk_size) };
@@ -165,10 +169,5 @@ impl<'a, C: Communicator> Global2LocalDataMapper<'a, C> {
     /// Return the ghost communicator
     pub fn ghost_communicator(&self) -> &crate::GhostCommunicator<usize> {
         &self.ghost_communicator
-    }
-
-    /// Return the dof to position map
-    pub fn dof_to_position_map(&self) -> &HashMap<usize, usize> {
-        &self.dof_to_position
     }
 }
