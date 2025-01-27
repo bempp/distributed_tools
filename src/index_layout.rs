@@ -184,7 +184,7 @@ impl<'a, C: Communicator> IndexLayout<'a, C> {
     /// Returns ```None``` if index does not exist on rank.
     pub fn global2local(&self, rank: usize, index: usize) -> Option<usize> {
         if let Some(index_range) = self.index_range(rank) {
-            if index >= index_range.1 {
+            if index >= index_range.1 || index < index_range.0 {
                 return None;
             }
 
