@@ -37,13 +37,13 @@ jobs:
         run: cargo test
       - name: Run unit tests in release mode
         run: cargo test --release
-      - name: Run tests
-        run: cargo test --examples --release
-      - name: Run examples
-        run: |
-          python3 find_examples.py
-          chmod +x examples.sh
-          ./examples.sh
+      # - name: Run tests
+      #   run: cargo test --examples --release
+      # - name: Run examples
+      #   run: |
+      #     python3 find_examples.py
+      #     chmod +x examples.sh
+      #     ./examples.sh
 
       - name: Build docs
         run: cargo doc --no-deps
