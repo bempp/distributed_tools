@@ -85,38 +85,54 @@ impl<'a, C: Communicator> DataPermutation<'a, C> {
         &self,
         data: &[T],
         permuted_data: &mut [T],
+        chunk_size: usize,
     ) {
-        assert_eq!(data.len(), self.index_layout.number_of_local_indices());
-        assert_eq!(permuted_data.len(), self.nindices);
+        assert_eq!(
+            data.len(),
+            chunk_size * self.index_layout.number_of_local_indices()
+        );
+        assert_eq!(permuted_data.len(), chunk_size * self.nindices);
 
         // We first need to get the send data. This is quite easy. We can just
         // use the global2local method from the index layout.
 
-        let mut send_data = Vec::<T>::with_capacity(self.ghost_communicator.total_send_count());
+        let mut send_data =
+            Vec::<T>::with_capacity(chunk_size * self.ghost_communicator.total_send_count());
 
         for &index in self.ghost_communicator.send_indices() {
-            let local_index = self.index_layout.global2local(self.my_rank, index).unwrap();
-            send_data.push(data[local_index]);
+            let local_start_index =
+                chunk_size * self.index_layout.global2local(self.my_rank, index).unwrap();
+            let local_end_index = local_start_index + chunk_size;
+            send_data.extend_from_slice(&data[local_start_index..local_end_index]);
         }
 
         // Now we do the data exchange across ranks.
 
-        let mut received_data = vec![T::default(); self.ghost_communicator.total_receive_count()];
-        self.ghost_communicator
-            .forward_send_values(&send_data, &mut received_data);
+        let mut received_data =
+            vec![T::default(); chunk_size * self.ghost_communicator.total_receive_count()];
+        self.ghost_communicator.forward_send_values_by_chunks(
+            &send_data,
+            &mut received_data,
+            chunk_size,
+        );
 
         // The data exchange is done. Now we have to fit everything back together to get to our custom data layout.
 
         // First we iterate through the local data.
 
         for (&pos, &local_index) in izip!(&self.local_to_custom_map, &self.custom_local_indices) {
-            permuted_data[pos] = data[local_index];
+            permuted_data[chunk_size * pos..chunk_size * (1 + pos)]
+                .copy_from_slice(&data[chunk_size * local_index..chunk_size * (1 + local_index)]);
         }
 
         // Now we iterate through the ghost data and assign it to the right position in the permuted data.
 
-        for (&permuted_index, &elem) in izip!(&self.receive_to_custom_map, received_data.iter()) {
-            permuted_data[permuted_index] = elem;
+        for (&permuted_index, chunk) in izip!(
+            &self.receive_to_custom_map,
+            received_data.chunks(chunk_size)
+        ) {
+            permuted_data[chunk_size * permuted_index..chunk_size * (1 + permuted_index)]
+                .copy_from_slice(chunk);
         }
     }
 
@@ -125,38 +141,51 @@ impl<'a, C: Communicator> DataPermutation<'a, C> {
         &self,
         data: &[T],
         permuted_data: &mut [T],
+        chunk_size: usize,
     ) {
-        assert_eq!(data.len(), self.nindices);
+        assert_eq!(data.len(), chunk_size * self.nindices);
         assert_eq!(
             permuted_data.len(),
-            self.index_layout.number_of_local_indices()
+            chunk_size * self.index_layout.number_of_local_indices()
         );
 
         // We need to fill up the receive indices as this is the data that is sent around.
         let mut receive_data =
-            Vec::<T>::with_capacity(self.ghost_communicator.total_receive_count());
-        for custom_index in self.receive_to_custom_map.iter() {
-            receive_data.push(data[*custom_index])
+            Vec::<T>::with_capacity(chunk_size * self.ghost_communicator.total_receive_count());
+        for &custom_index in self.receive_to_custom_map.iter() {
+            receive_data.extend_from_slice(
+                &data[custom_index * chunk_size..(1 + custom_index) * chunk_size],
+            )
         }
 
         // We can now send back the receive indices.
 
-        let mut send_data = vec![T::default(); self.ghost_communicator.total_send_count()];
+        let mut send_data =
+            vec![T::default(); chunk_size * self.ghost_communicator.total_send_count()];
 
         // We now send data backwards from receiver to sender.
-        self.ghost_communicator
-            .backward_send_values(&receive_data, &mut send_data);
+        self.ghost_communicator.backward_send_values_by_chunks(
+            &receive_data,
+            &mut send_data,
+            chunk_size,
+        );
 
         // We now go through the send indices and fill the output data with the corresponding values.
 
-        for (&index, &elem) in izip!(self.ghost_communicator.send_indices(), send_data.iter()) {
-            let local_index = self.index_layout.global2local(self.my_rank, index).unwrap();
-            permuted_data[local_index] = elem;
+        for (&index, chunk) in izip!(
+            self.ghost_communicator.send_indices(),
+            send_data.chunks(chunk_size)
+        ) {
+            let local_start_index =
+                chunk_size * self.index_layout.global2local(self.my_rank, index).unwrap();
+            let local_end_index = local_start_index + chunk_size;
+            permuted_data[local_start_index..local_end_index].copy_from_slice(chunk);
         }
 
         // We still have to handle the indices that lived only locally.
         for (&pos, &local_index) in izip!(&self.local_to_custom_map, &self.custom_local_indices) {
-            permuted_data[local_index] = data[pos];
+            permuted_data[local_index * chunk_size..(1 + local_index) * chunk_size]
+                .copy_from_slice(&data[pos * chunk_size..(1 + pos) * chunk_size]);
         }
     }
 }
