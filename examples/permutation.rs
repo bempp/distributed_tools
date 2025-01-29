@@ -16,6 +16,8 @@ fn main() {
 
     let n = 1537;
 
+    let chunk_size = 3;
+
     // We setup the index layout.
 
     // We now create a permutation of the dofs.
@@ -31,19 +33,22 @@ fn main() {
 
     // We now want to send some data over.
 
-    let data = (local_bounds.0..local_bounds.1).collect_vec();
+    let data = (local_bounds.0..local_bounds.1)
+        .flat_map(|elem| std::iter::repeat(elem).take(3))
+        .collect_vec();
 
-    let mut permuted_forward_data = vec![0; custom_indices.len()];
-    let mut permuted_backward_data = vec![0; index_layout.number_of_local_indices()];
+    let mut permuted_forward_data = vec![0; chunk_size * custom_indices.len()];
+    let mut permuted_backward_data = vec![0; chunk_size * index_layout.number_of_local_indices()];
 
-    permutation.forward_permute(&data, &mut permuted_forward_data);
+    permutation.forward_permute(&data, &mut permuted_forward_data, chunk_size);
 
-    permutation.backward_permute(&permuted_forward_data, &mut permuted_backward_data);
+    permutation.backward_permute(
+        &permuted_forward_data,
+        &mut permuted_backward_data,
+        chunk_size,
+    );
 
-    for (&actual, expected) in izip!(
-        permuted_backward_data.iter(),
-        local_bounds.0..local_bounds.1
-    ) {
+    for (&actual, &expected) in izip!(permuted_backward_data.iter(), data.iter()) {
         assert_eq!(actual, expected);
     }
 }
