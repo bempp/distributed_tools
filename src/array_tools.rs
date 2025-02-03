@@ -5,7 +5,7 @@
 use itertools::{izip, Itertools};
 use mpi::{
     datatype::{Partition, PartitionMut},
-    traits::{CommunicatorCollectives, Equivalence},
+    traits::{Communicator, CommunicatorCollectives, Equivalence, Root},
 };
 
 ///
@@ -124,4 +124,120 @@ pub fn displacements(counts: &[i32]) -> Vec<i32> {
             Some(tmp)
         })
         .collect()
+}
+
+/// Performs an all-to-all communication.
+///
+/// # Input arguments
+/// - `comm` - The communicator
+/// - `counts` - A slice with `comm.size()` elements specifying how many elements to send to each process from the current process.
+/// - `data` - The buffer of data to be sent out ordered with respect to `counts`.
+///
+/// The returned data is a tuple `(in_counts, in_data)` with `in_counts` an array with `comm.size()` elements specifying how
+/// many elements have been received into the current process from each other process. `in_data` contains the actual received
+/// data sorted according to `in_counts`.
+pub fn all_to_allv<T: Equivalence>(
+    comm: &impl Communicator,
+    counts: &[usize],
+    out_data: &[T],
+) -> (Vec<usize>, Vec<T>) {
+    // We need the counts as i32 types.
+    assert_eq!(counts.len(), comm.size() as usize);
+
+    let counts = counts.iter().map(|&x| x as i32).collect_vec();
+
+    // First send around the counts via an all-to-all
+    let mut recv_counts = vec![0; comm.size() as usize];
+    comm.all_to_all_into(&counts, &mut recv_counts);
+
+    let n_recv_counts = recv_counts.iter().sum::<i32>() as usize;
+
+    // Now we can prepare the actual data. We have to allocate the data and compute the send partition and the receive partition.
+
+    let mut receive_data = Vec::<T>::with_capacity(n_recv_counts);
+    let receive_buf: &mut [T] = unsafe { std::mem::transmute(receive_data.spare_capacity_mut()) };
+
+    let send_displacements = displacements(&counts);
+
+    let receive_displacements = displacements(&recv_counts);
+
+    let send_partition = mpi::datatype::Partition::new(out_data, counts, send_displacements);
+    let mut receive_partition =
+        mpi::datatype::PartitionMut::new(receive_buf, &recv_counts[..], receive_displacements);
+
+    comm.all_to_all_varcount_into(&send_partition, &mut receive_partition);
+
+    unsafe { receive_data.set_len(n_recv_counts) };
+
+    (
+        recv_counts.iter().map(|i| *i as usize).collect_vec(),
+        receive_data,
+    )
+}
+
+/// Scatter data across processes.
+///
+/// This function needs to be called at the root for the scatter operation.
+/// # Input arguments
+/// - `comm` - The communicator
+/// - `counts` - A slice of length `comm.size()` containing the number of elements to be sent to each process.
+/// - `out_data` - The data to be sent out sorted by `counts`.
+///
+/// The function returns the vector of elements that is sent to the root in the scatter operation.
+pub fn scatterv_root<T: Equivalence>(
+    comm: &impl Communicator,
+    counts: &[usize],
+    out_data: &[T],
+) -> Vec<T> {
+    assert_eq!(counts.len(), comm.size() as usize);
+    let rank = comm.rank() as usize;
+
+    let send_counts = counts.iter().map(|&x| x as i32).collect_vec();
+
+    let mut recv_count: i32 = 0;
+    let mut recvbuf: Vec<T> = Vec::<T>::with_capacity(send_counts[rank] as usize);
+    // This avoids having the pre-initialise the array. We simply transmute the spare capacity
+    // into a valid reference and later manually set the length of the array to the full capacity.
+    let recvbuf_ref: &mut [T] = unsafe { std::mem::transmute(recvbuf.spare_capacity_mut()) };
+
+    let displacements = displacements(&send_counts);
+
+    // Now scatter the counts to each process.
+    comm.this_process()
+        .scatter_into_root(&send_counts, &mut recv_count);
+
+    // We now prepare the send partition of the variable length data.
+    let send_partition =
+        mpi::datatype::Partition::new(out_data, &send_counts[..], &displacements[..]);
+
+    // And now we send the partition.
+    comm.this_process()
+        .scatter_varcount_into_root(&send_partition, recvbuf_ref);
+
+    unsafe { recvbuf.set_len(send_counts[rank] as usize) };
+
+    recvbuf
+}
+
+/// Receiev the scattered data from `root`.
+pub fn scatterv<T: Equivalence + Copy>(comm: &impl Communicator, root: usize) -> Vec<T> {
+    let mut recv_count: i32 = 0;
+
+    // First we need to receive the number of elements that we are about to get.
+    comm.process_at_rank(root as i32)
+        .scatter_into(&mut recv_count);
+
+    // We prepare an unitialized buffer to receive the data.
+    let mut recvbuf: Vec<T> = Vec::<T>::with_capacity(recv_count as usize);
+    // This avoids having the pre-initialise the array. We simply transmute the spare capacity
+    // into a valid reference and later manually set the length of the array to the full capacity.
+    let recvbuf_ref: &mut [T] = unsafe { std::mem::transmute(recvbuf.spare_capacity_mut()) };
+
+    // And finally we receive the data.
+    comm.process_at_rank(root as i32)
+        .scatter_varcount_into(recvbuf_ref);
+
+    // Don't forget to manually set the length of the vector to the correct value.
+    unsafe { recvbuf.set_len(recv_count as usize) };
+    recvbuf
 }
